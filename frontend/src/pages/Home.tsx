@@ -33,15 +33,15 @@ export default function Home() {
 
       {/* Main Card */}
       <div className="relative z-10 bg-white/80 dark:bg-gray-900/80 shadow-xl rounded-3xl p-10 w-[95%] max-w-2xl text-center backdrop-blur-lg border border-gray-200 dark:border-gray-700">
-        <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-3 tracking-tight">Peer Evaluation System</h1>
-        <p className="text-gray-700 dark:text-gray-300 mb-8 text-sm">Welcome! Please login or register to continue.</p>
+  <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white mb-3 tracking-tight">SentimentScope — AI Product Review Analyzer</h1>
+  <p className="text-gray-700 dark:text-gray-300 mb-8 text-sm">Welcome to SentimentScope. Analyze large volumes of product reviews to extract sentiment, key aspects, and concise summaries — powered by transformer-based NLP models.</p>
 
         {/* Features */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 text-left">
           {[
-            { color: 'indigo', title: 'Track Progress', desc: 'Monitor your evaluation status and feedback in real time.' },
-            { color: 'green', title: 'Easy Evaluation', desc: 'Submit and review peer evaluations with a simple interface.' },
-            { color: 'pink', title: 'Secure & Private', desc: 'Your data is encrypted and privacy is our top priority.' },
+            { color: 'indigo', title: 'Abstract', desc: 'AI-powered analyzer that classifies sentiments, extracts product aspects, and generates concise summaries from large, noisy review datasets.' },
+            { color: 'green', title: 'Aim', desc: 'Classify overall sentiment, extract & rank aspects (performance, usability, support), and produce actionable summaries and simple visuals.' },
+            { color: 'pink', title: 'Value', desc: 'Help consumers make informed purchase decisions and give businesses actionable intelligence to improve products.' },
           ].map((f, i) => (
             <div key={i} className={`bg-${f.color}-50 dark:bg-${f.color}-900 p-5 rounded-xl shadow-md hover:scale-[1.03] transition`}>
               <p className={`font-semibold text-${f.color}-800 dark:text-${f.color}-200 text-sm mb-1`}>{f.title}</p>
