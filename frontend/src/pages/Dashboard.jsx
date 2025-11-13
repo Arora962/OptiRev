@@ -28,13 +28,20 @@ export default function Dashboard() {
 
   // typing animation
   useEffect(() => {
-    let i = 0;
+    if (!fullText || fullText.length === 0) return;
+
+    // ensure first character is not skipped: set it immediately, then start from index 1
+    setTypedText(fullText.charAt(0));
+    let i = 1;
     const timer = setInterval(() => {
       if (i < fullText.length) {
         setTypedText((prev) => prev + fullText.charAt(i));
         i++;
-      } else clearInterval(timer);
+      } else {
+        clearInterval(timer);
+      }
     }, 100);
+
     return () => clearInterval(timer);
   }, []);
 
