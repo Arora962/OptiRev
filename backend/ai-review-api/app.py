@@ -80,7 +80,37 @@ def analyze_review():
 
     preview_info = fetch_preview_info(product_url)
 
-    # Use small sample reviews for sentiment analysis (can be replaced with real scrapers later)
+    # Try to fetch real reviews for Amazon/Flipkart using local scrapers
+    reviews = []
+    used_real_scraper = False
+    try:
+        # attempt Flipkart
+        if "flipkart" in product_url.lower():
+            try:
+                from utils.extract_id import extract_flipkart_pid
+            except Exception:
+                from .utils.extract_id import extract_flipkart_pid
+            pid = extract_flipkart_pid(product_url)
+            if pid:
+                try:
+                    from scrapers.flipkart_scraper import fetch_flipkart_reviews
+                except Exception:
+                    from .scrapers.flipkart_scraper import fetch_flipkart_reviews
+                reviews = fetch_flipkart_reviews(pid) or []
+                used_real_scraper = len(reviews) > 0
+
+        # attempt Amazon
+        if (not reviews) and "amazon" in product_url.lower():
+            try:
+                from utils.scraper import scrape_amazon_reviews
+            except Exception:
+                from .utils.scraper import scrape_amazon_reviews
+            reviews = scrape_amazon_reviews(product_url, limit=50) or []
+            used_real_scraper = len(reviews) > 0
+    except Exception:
+        reviews = []
+
+    # Fallback small sample reviews if scrapers failed
     sample_reviews = [
         "The product quality is amazing and feels premium.",
         "Not worth the money, it stopped working in a week.",
@@ -91,18 +121,41 @@ def analyze_review():
         "Terrible customer service, wouldn’t recommend."
     ]
 
-    positive_keywords = ["good", "great", "amazing", "excellent", "premium", "smooth", "recommend", "solid", "love", "best"]
-    negative_keywords = ["bad", "poor", "terrible", "disappointing", "not", "stopped", "delayed", "damaged", "awful", "worst"]
+    if not reviews:
+        reviews = sample_reviews[:]
 
-    positive_count = sum(any(word in r.lower() for word in positive_keywords) for r in sample_reviews)
-    negative_count = sum(any(word in r.lower() for word in negative_keywords) for r in sample_reviews)
-    total = len(sample_reviews)
+    positive_keywords = ["good", "great", "amazing", "excellent", "premium", "smooth", "recommend", "solid", "love", "best", "awesome", "fantastic"]
+    negative_keywords = ["bad", "poor", "terrible", "disappointing", "not", "stopped", "delayed", "damaged", "awful", "worst", "hate", "problem"]
 
-    positive_percent = round((positive_count / total) * 100, 1)
-    negative_percent = round((negative_count / total) * 100, 1)
-    neutral_percent = round(100 - positive_percent - negative_percent, 1)
+    total = len(reviews)
 
-    # derive pros/cons heuristically from review snippets
+    # classify each review by simple keyword counts and compute per-review polarity
+    review_sentiments = []
+    for r in reviews:
+        rl = r.lower()
+        pos_matches = sum(rl.count(k) for k in positive_keywords)
+        neg_matches = sum(rl.count(k) for k in negative_keywords)
+        if pos_matches > neg_matches:
+            cls = "positive"
+        elif neg_matches > pos_matches:
+            cls = "negative"
+        else:
+            cls = "neutral"
+        # polarity normalized between -1 and 1
+        polarity = 0.0
+        if pos_matches + neg_matches > 0:
+            polarity = (pos_matches - neg_matches) / (pos_matches + neg_matches)
+        review_sentiments.append({"text": r, "class": cls, "polarity": polarity, "pos": pos_matches, "neg": neg_matches})
+
+    positive_count = sum(1 for s in review_sentiments if s["class"] == "positive")
+    negative_count = sum(1 for s in review_sentiments if s["class"] == "negative")
+    neutral_count = sum(1 for s in review_sentiments if s["class"] == "neutral")
+
+    positive_percent = round((positive_count / total) * 100, 1) if total else 0.0
+    negative_percent = round((negative_count / total) * 100, 1) if total else 0.0
+    neutral_percent = round((neutral_count / total) * 100, 1) if total else 0.0
+
+    # derive pros/cons from review_sentiments
     def uniq_keep_order(seq):
         seen = set()
         out = []
@@ -112,8 +165,8 @@ def analyze_review():
                 out.append(x)
         return out
 
-    pros = uniq_keep_order([r for r in sample_reviews if any(k in r.lower() for k in positive_keywords)])[:8]
-    cons = uniq_keep_order([r for r in sample_reviews if any(k in r.lower() for k in negative_keywords)])[:8]
+    pros = uniq_keep_order([s["text"] for s in review_sentiments if s["class"] == "positive"])[:8]
+    cons = uniq_keep_order([s["text"] for s in review_sentiments if s["class"] == "negative"])[:8]
 
     tone = "Neutral"
     if positive_count > negative_count:
@@ -121,32 +174,54 @@ def analyze_review():
     elif negative_count > positive_count:
         tone = "Negative"
 
-    # create short, human-friendly pros/cons summaries (trim to first 8 words)
-    def short_snippet(s, max_words=8):
+    # create short, human-friendly pros/cons summaries (trim to first 10 words)
+    def short_snippet(s, max_words=10):
         parts = s.split()
         if len(parts) <= max_words:
             return s
         return " ".join(parts[:max_words]).rstrip(".,") + "..."
 
-    pros_short = [short_snippet(p, 8) for p in pros] or ["Good performance"]
-    cons_short = [short_snippet(c, 8) for c in cons] or ["Some users reported issues"]
+    pros_short = [short_snippet(p, 10) for p in pros] or ["Good performance"]
+    cons_short = [short_snippet(c, 10) for c in cons] or ["Some users reported issues"]
 
-    # Generate a concise summary based on review-derived pros/cons and sentiment
-    if pros_short and cons_short:
-        summary = (
-            f"Overall customer sentiment is {tone.lower()}. Reviewers commonly praised {', '.join(pros_short[:3])}"
-            f" and reported issues such as {', '.join(cons_short[:3])}."
-            f" Based on {total} reviews, estimated sentiment: {positive_percent}% positive, {neutral_percent}% neutral, {negative_percent}% negative."
-        )
+    # Extractive summary: score sentences from reviews by word frequency
+    import re
+
+    # build word frequency excluding common stopwords
+    stopwords = set(["the","and","is","in","it","of","we","a","an","to","for","with","that","this","on","was","are","as","but","be","have","has"])
+    freq = {}
+    sentences = []
+    for r in reviews:
+        # split into sentences
+        pieces = re.split(r'[\.\!\?]+\s*', r.strip())
+        for s in pieces:
+            s = s.strip()
+            if not s:
+                continue
+            sentences.append(s)
+            for w in re.findall(r"\w+", s.lower()):
+                if w in stopwords:
+                    continue
+                freq[w] = freq.get(w, 0) + 1
+
+    def score_sentence(s):
+        return sum(freq.get(w, 0) for w in re.findall(r"\w+", s.lower()))
+
+    # rank sentences and take top 2-3
+    ranked = sorted(sentences, key=score_sentence, reverse=True)
+    top_sentences = uniq_keep_order(ranked)[:3]
+
+    if top_sentences:
+        summary_body = " ".join(top_sentences)
+        summary = f"{summary_body} Overall sentiment is {tone.lower()}: {positive_percent}% positive, {neutral_percent}% neutral, {negative_percent}% negative (based on {total} reviews)."
     else:
         summary = f"Across {total} reviews analyzed, sentiment is {tone.lower()} — {positive_percent}% positive, {neutral_percent}% neutral and {negative_percent}% negative."
 
-    # More realistic rating: map positive% (and some neutral) to a 1-5 scale
-    rating = round(1 + ((positive_percent + neutral_percent * 0.35) / 100.0) * 4.0, 1)
-    if rating < 1.0:
-        rating = 1.0
-    if rating > 5.0:
-        rating = 5.0
+    # More realistic rating computed from average polarity across reviews
+    avg_polarity = sum(s["polarity"] for s in review_sentiments) / (len(review_sentiments) or 1)
+    # map avg_polarity (-1..1) to 1..5
+    rating = round(((avg_polarity + 1) / 2) * 4 + 1, 1)
+    rating = max(1.0, min(5.0, rating))
 
     response = {
         "product_url": product_url,

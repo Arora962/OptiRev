@@ -12,6 +12,10 @@ import {
   Chip,
   CardMedia,
 } from "@mui/material";
+import StarIcon from "@mui/icons-material/Star";
+import StarHalfIcon from "@mui/icons-material/StarHalf";
+import StarBorderIcon from "@mui/icons-material/StarBorder";
+import VerifiedIcon from "@mui/icons-material/Verified";
 import { motion } from "framer-motion";
 
 export default function Dashboard() {
@@ -112,6 +116,26 @@ export default function Dashboard() {
         <Box sx={{ width: `${negativeWidth}%`, backgroundColor: "#f44336" }} />
       </Box>
     );
+  };
+
+  // render star icons for rating (supports halves)
+  const renderStars = (rating) => {
+    const stars = [];
+    const full = Math.floor(rating);
+    const half = rating - full >= 0.5;
+    for (let i = 0; i < full; i++) stars.push(<StarIcon key={`s${i}`} sx={{ color: "#fbc02d" }} />);
+    if (half) stars.push(<StarHalfIcon key="half" sx={{ color: "#fbc02d" }} />);
+    while (stars.length < 5) {
+      stars.push(<StarBorderIcon key={`e${stars.length}`} sx={{ color: "#fbc02d" }} />);
+    }
+    return <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>{stars}</Box>;
+  };
+
+  // compute a simple confidence score from sentiment breakdown
+  const computeConfidence = (sentiments) => {
+    if (!sentiments) return 0;
+    const { positive = 0, neutral = 0, negative = 0 } = sentiments;
+    return Math.round(Math.max(positive, neutral, negative));
   };
 
   return (
@@ -245,9 +269,28 @@ export default function Dashboard() {
                       <Typography variant="body1">
                         <strong>Tone:</strong> {result.tone}
                       </Typography>
-                      <Typography variant="body1">
-                        <strong>Rating:</strong> ⭐ {result.rating}/5
-                      </Typography>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Typography variant="body1">
+                          <strong>Rating:</strong>
+                        </Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          {renderStars(Number(result.rating) || 0)}
+                          <Typography variant="body1"> {result.rating}/5</Typography>
+                        </Box>
+                        <Chip
+                          icon={<VerifiedIcon />}
+                          label={
+                            computeConfidence(result.sentiment_breakdown) + "% confidence"
+                          }
+                          size="small"
+                          sx={{ ml: 1, bgcolor: (theme) => {
+                            const c = computeConfidence(result.sentiment_breakdown);
+                            if (c >= 65) return "#e8f5e9";
+                            if (c >= 40) return "#fff8e1";
+                            return "#ffebee";
+                          }, color: (theme) => (computeConfidence(result.sentiment_breakdown) >= 65 ? "#2e7d32" : computeConfidence(result.sentiment_breakdown) >= 40 ? "#ff8f00" : "#c62828") }}
+                        />
+                      </Box>
 
                       <Typography variant="body1" sx={{ mt: 2 }}>
                         <strong>Sentiment Breakdown:</strong>
