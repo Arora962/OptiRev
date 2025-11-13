@@ -9,7 +9,6 @@ lerna-debug.log*
 
 # Dependency directories
 node_modules
-/node_modules
 /.pnp
 .pnp.js
 
@@ -39,9 +38,4 @@ dist-ssr
 *.sln
 *.sw?
 
-**/node_modules
-**/*.json
-**/.env
-**/vite.config.ts
-Peer_Evaluation_V3_NPTEL/backend/package-lock.json
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
