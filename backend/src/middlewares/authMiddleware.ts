@@ -1,9 +1,9 @@
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
-import { User } from "../models/User.ts";
+import { User } from "../models/User";
 
 // Extend req to include user
-interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest extends Request {
   user?: any;
 }
 
@@ -39,4 +39,4 @@ export const authMiddleware = async (
     res.status(401).json({ message: "Invalid token" });
   }
 };
-export default AuthenticatedRequest;
+export default authMiddleware;

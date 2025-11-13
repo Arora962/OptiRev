@@ -84,7 +84,7 @@ export const registerUser = async (req: Request, res: Response): Promise<void> =
   }
 };
 
-import { Batch } from '../../models/Batch.ts'; // ✅ Add this import if not present
+//import { Batch } from '../../models/Batch.ts'; // ✅ Add this import if not present
 
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -97,7 +97,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     }
 
     // 🔍 Check if the user is a TA in any batch
-    const isTA = await Batch.exists({ ta: user._id });
+    //const isTA = await Batch.exists({ ta: user._id });
 
     const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, {
       expiresIn: '7d',
@@ -107,7 +107,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
       message: "Login successful",
       token,
       role: user.role,
-      isTA: Boolean(isTA),
+      isTA: Boolean(false),
       user: {
         id: user._id,
         name: user.name,
