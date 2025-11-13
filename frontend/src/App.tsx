@@ -1,30 +1,20 @@
-import React from 'react'
-import { Routes, Route } from 'react-router-dom'
-import './App.css'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register'; 
+import OtpScreen from './pages/OtpScreen';
 
-import SearchPage from './pages/SearchPage'
-import Dashboard from './pages/Dashboard'
-import Navbar from './components/Navbar'
 
-const App: React.FC = () => {
+export default function App() {
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #a3c4f3, #f3e5f5)',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <Navbar />
-      <div style={{ flex: 1, padding: '20px' }}>
-        <Routes>
-          <Route path="/" element={<SearchPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-        </Routes>
-      </div>
-    </div>
-  )
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/otp" element={<OtpScreen />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Routes>
+    </Router>
+  );
 }
-
-export default App
