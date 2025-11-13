@@ -230,11 +230,6 @@ export default function Dashboard() {
                   </Typography>
 
                   <Box sx={{ mb: 3, textAlign: "center" }}>
-                    {result.description && (
-                      <Typography variant="body2" sx={{ mb: 1, color: 'gray' }}>
-                        {result.description}
-                      </Typography>
-                    )}
                     <Typography variant="body1">{result.summary}</Typography>
                   </Box>
 

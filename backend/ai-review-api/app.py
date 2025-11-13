@@ -102,9 +102,18 @@ def analyze_review():
     negative_percent = round((negative_count / total) * 100, 1)
     neutral_percent = round(100 - positive_percent - negative_percent, 1)
 
-    # derive pros/cons heuristically
-    pros = [r for r in sample_reviews if any(k in r.lower() for k in positive_keywords)][:6] or ["Good performance"]
-    cons = [r for r in sample_reviews if any(k in r.lower() for k in negative_keywords)][:6] or ["Some users reported issues"]
+    # derive pros/cons heuristically from review snippets
+    def uniq_keep_order(seq):
+        seen = set()
+        out = []
+        for x in seq:
+            if x not in seen:
+                seen.add(x)
+                out.append(x)
+        return out
+
+    pros = uniq_keep_order([r for r in sample_reviews if any(k in r.lower() for k in positive_keywords)])[:8]
+    cons = uniq_keep_order([r for r in sample_reviews if any(k in r.lower() for k in negative_keywords)])[:8]
 
     tone = "Neutral"
     if positive_count > negative_count:
@@ -112,26 +121,32 @@ def analyze_review():
     elif negative_count > positive_count:
         tone = "Negative"
 
-    # Compose summary that includes the product description/title if available
-    summary_parts = []
-    if preview_info.get("title"):
-        summary_parts.append(preview_info.get("title"))
-    if preview_info.get("description"):
-        d = preview_info.get("description").strip()
-        if len(d) > 240:
-            d = d[:237].rsplit(" ", 1)[0] + "..."
-        summary_parts.append(d)
+    # create short, human-friendly pros/cons summaries (trim to first 8 words)
+    def short_snippet(s, max_words=8):
+        parts = s.split()
+        if len(parts) <= max_words:
+            return s
+        return " ".join(parts[:max_words]).rstrip(".,") + "..."
 
-    summary_parts.append(f"Across {total} reviews analyzed, sentiment is {tone.lower()} — {positive_percent}% positive, {neutral_percent}% neutral and {negative_percent}% negative.")
-    summary = " ".join(summary_parts)
+    pros_short = [short_snippet(p, 8) for p in pros] or ["Good performance"]
+    cons_short = [short_snippet(c, 8) for c in cons] or ["Some users reported issues"]
 
-    # heuristic rating
-    if positive_count > negative_count:
-        rating = round(min(5.0, 3.8 + (positive_percent / 40)), 1)
-    elif negative_count > positive_count:
-        rating = round(max(1.0, 3.6 - (negative_percent / 40)), 1)
+    # Generate a concise summary based on review-derived pros/cons and sentiment
+    if pros_short and cons_short:
+        summary = (
+            f"Overall customer sentiment is {tone.lower()}. Reviewers commonly praised {', '.join(pros_short[:3])}"
+            f" and reported issues such as {', '.join(cons_short[:3])}."
+            f" Based on {total} reviews, estimated sentiment: {positive_percent}% positive, {neutral_percent}% neutral, {negative_percent}% negative."
+        )
     else:
-        rating = 3.8
+        summary = f"Across {total} reviews analyzed, sentiment is {tone.lower()} — {positive_percent}% positive, {neutral_percent}% neutral and {negative_percent}% negative."
+
+    # More realistic rating: map positive% (and some neutral) to a 1-5 scale
+    rating = round(1 + ((positive_percent + neutral_percent * 0.35) / 100.0) * 4.0, 1)
+    if rating < 1.0:
+        rating = 1.0
+    if rating > 5.0:
+        rating = 5.0
 
     response = {
         "product_url": product_url,
